@@ -1,6 +1,6 @@
 /*
 
- This is the source code of exteraGram for Android.
+ This is the source code of ExteraLight for Android.
 
  We do not and cannot prevent the use of our code,
  but be respectful and credit the original author.
@@ -25,6 +25,7 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.exteragram.messenger.ExteraConfig;
 import com.exteragram.messenger.preferences.components.HeaderSettingsCell;
 import com.exteragram.messenger.preferences.updater.UpdaterBottomSheet;
 
@@ -38,6 +39,7 @@ import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.HeaderCell;
 import org.telegram.ui.Cells.TextCell;
+import org.telegram.ui.Components.BulletinFactory;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
 
@@ -49,6 +51,7 @@ public class MainPreferencesActivity extends BasePreferencesActivity {
     private HeaderSettingsCell headerSettingsCell;
 
     private int categoryHeaderRow;
+    private int godModeRow = -1;
     private int generalRow;
     private int appearanceRow;
     private int chatsRow;
@@ -64,6 +67,8 @@ public class MainPreferencesActivity extends BasePreferencesActivity {
     private int groupRow;
     private int crowdinRow;
     private int infoDividerRow;
+
+    private int headerClickCount = 0;
 
     @Override
     public View createView(Context context) {
@@ -98,41 +103,43 @@ public class MainPreferencesActivity extends BasePreferencesActivity {
             @Override
             protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
                 super.onLayout(changed, left, top, right, bottom);
+
                 checkScroll(false);
             }
         };
-        fragmentView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundGray));
-        fragmentView.setTag(Theme.key_windowBackgroundGray);
         FrameLayout frameLayout = (FrameLayout) fragmentView;
+        frameLayout.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundGray));
 
         listView = new RecyclerListView(context);
         listView.setLayoutManager(layoutManager = new LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false));
+        listView.setVerticalScrollBarEnabled(false);
         listView.setAdapter(listAdapter = createAdapter(context));
-        frameLayout.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
-
         listView.setOnItemClickListener(this::onItemClick);
         listView.setOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
                 super.onScrolled(recyclerView, dx, dy);
+
                 checkScroll(true);
             }
         });
+        frameLayout.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
 
         actionBarBackground = new View(context) {
-
             private final Paint paint = new Paint();
 
             @Override
             protected void onDraw(Canvas canvas) {
+                super.onDraw(canvas);
+
                 paint.setColor(Theme.getColor(Theme.key_windowBackgroundWhite));
-                int h = getMeasuredHeight() - AndroidUtilities.dp(3);
-                canvas.drawRect(0, 0, getMeasuredWidth(), h, paint);
-                parentLayout.drawHeaderShadow(canvas, h);
+                canvas.drawRect(0, 0, getMeasuredWidth(), getMeasuredHeight() - AndroidUtilities.dp(3), paint);
+                parentLayout.drawHeaderShadow(canvas, getMeasuredHeight() - AndroidUtilities.dp(3));
             }
         };
         actionBarBackground.setAlpha(0.0f);
         frameLayout.addView(actionBarBackground, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+
         frameLayout.addView(actionBar, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
 
         updateRowsId();
@@ -161,7 +168,6 @@ public class MainPreferencesActivity extends BasePreferencesActivity {
             actionBarBackground.setTag(show ? null : 1);
             if (actionBarAnimator != null) {
                 actionBarAnimator.cancel();
-                actionBarAnimator = null;
             }
             if (animated) {
                 actionBarAnimator = new AnimatorSet();
@@ -169,13 +175,11 @@ public class MainPreferencesActivity extends BasePreferencesActivity {
                         ObjectAnimator.ofFloat(actionBarBackground, View.ALPHA, show ? 1.0f : 0.0f),
                         ObjectAnimator.ofFloat(actionBar.getTitleTextView(), View.ALPHA, show ? 1.0f : 0.0f)
                 );
-                actionBarAnimator.setDuration(250);
+                actionBarAnimator.setDuration(150);
                 actionBarAnimator.addListener(new AnimatorListenerAdapter() {
                     @Override
                     public void onAnimationEnd(Animator animation) {
-                        if (animation.equals(actionBarAnimator)) {
-                            actionBarAnimator = null;
-                        }
+                        actionBarAnimator = null;
                     }
                 });
                 actionBarAnimator.start();
@@ -192,6 +196,12 @@ public class MainPreferencesActivity extends BasePreferencesActivity {
 
         aboutExteraRow = newRow();
         aboutExteraDividerRow = newRow();
+
+        if (ExteraConfig.godMode) {
+            godModeRow = newRow();
+        } else {
+            godModeRow = -1;
+        }
 
         categoryHeaderRow = newRow();
         generalRow = newRow();
@@ -211,10 +221,28 @@ public class MainPreferencesActivity extends BasePreferencesActivity {
     @Override
     protected void onItemClick(View view, int position, float x, float y) {
         if (position == aboutExteraRow) {
-            if (!BuildVars.PM_BUILD)
+            headerClickCount++;
+            if (headerClickCount >= 5) {
+                headerClickCount = 0;
+                ExteraConfig.toggleGodMode();
+                try {
+                    BulletinFactory.of(this).createSimpleBulletin(R.drawable.msg_bot, LocaleController.getString("EasterEggUnlocked", R.string.EasterEggUnlocked)).show();
+                } catch (Exception ignore) {}
+                updateRowsId();
+                listAdapter.notifyDataSetChanged();
+            } else if (headerClickCount >= 2) {
+                try {
+                    BulletinFactory.of(this).createSimpleBulletin(R.drawable.msg_settings, "Tap " + (5 - headerClickCount) + " more times for God Mode!").show();
+                } catch (Exception ignore) {}
+            } else if (!BuildVars.PM_BUILD) {
                 (new UpdaterBottomSheet(getParentActivity(), this, false, null)).show();
+            }
+        } else if (position == godModeRow) {
+            try {
+                BulletinFactory.of(this).createSimpleBulletin(R.drawable.msg_bot, "⚡ ExteraLight: God Mode Turbo active!").show();
+            } catch (Exception ignore) {}
         } else if (position == sourceCodeRow) {
-            Browser.openUrl(getParentActivity(), "https://github.com/exteraSquad/exteraGram");
+            Browser.openUrl(getParentActivity(), "https://github.com/richixis33/ExteraLight");
         } else if (position == channelRow) {
             MessagesController.getInstance(currentAccount).openByUserName(("exteraGram"), this, 1);
         } else if (position == groupRow) {
@@ -266,7 +294,9 @@ public class MainPreferencesActivity extends BasePreferencesActivity {
                     break;
                 case 2:
                     TextCell textCell = (TextCell) holder.itemView;
-                    if (position == generalRow) {
+                    if (position == godModeRow) {
+                        textCell.setTextAndValueAndIcon("⚡ ExteraLight God Mode", "ACTIVE", R.drawable.msg_bot, true);
+                    } else if (position == generalRow) {
                         textCell.setTextAndIcon(LocaleController.getString("General", R.string.General), R.drawable.msg_media, true);
                     } else if (position == appearanceRow) {
                         textCell.setTextAndIcon(LocaleController.getString("Appearance", R.string.Appearance), R.drawable.msg_theme, true);
@@ -281,7 +311,7 @@ public class MainPreferencesActivity extends BasePreferencesActivity {
                     } else if (position == crowdinRow) {
                         textCell.setTextAndValueAndIcon(LocaleController.getString("Crowdin", R.string.Crowdin), "Crowdin", R.drawable.msg_translate, true);
                     } else if (position == sourceCodeRow) {
-                        textCell.setTextAndValueAndIcon(LocaleController.getString("SourceCode", R.string.SourceCode), "GitHub", R.drawable.msg_delete, false);
+                        textCell.setTextAndValueAndIcon(LocaleController.getString("SourceCode", R.string.SourceCode), "ExteraLight GitHub", R.drawable.msg_delete, false);
                     }
                     break;
                 case 3:
