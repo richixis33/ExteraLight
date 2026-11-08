@@ -82,12 +82,19 @@ android {
         targetSdkVersion 33
         versionName APP_VERSION_NAME
 
-        // Obtain your own keys at: https://core.telegram.org/api/obtaining_api_id
-        buildConfigField 'int', 'APP_ID', localProperties.getProperty("APP_ID")
-        buildConfigField 'String', 'APP_HASH', localProperties.getProperty("APP_HASH")
+        def appId = localProperties.getProperty("APP_ID", "2040")
+        def appHash = localProperties.getProperty("APP_HASH", '"b18441a1ff607e10a989891a5462e627"')
+        def mapsApiKey = localProperties.getProperty("MAPS_V2_API", '""')
+        if (!appHash.startsWith('"')) {
+            appHash = '"' + appHash + '"'
+        }
+        if (!mapsApiKey.startsWith('"')) {
+            mapsApiKey = '"' + mapsApiKey + '"'
+        }
 
-        // Google Console: https://console.cloud.google.com/google/maps-apis/credentials
-        resValue 'string', 'MAPS_V2_API', localProperties.getProperty("MAPS_V2_API")
+        buildConfigField 'int', 'APP_ID', appId
+        buildConfigField 'String', 'APP_HASH', appHash
+        resValue 'string', 'MAPS_V2_API', mapsApiKey
 
         externalNativeBuild {
             cmake {
@@ -101,8 +108,6 @@ android {
 
     sourceSets.main {
         jniLibs.srcDirs = ['jni']
-        //jniLibs.srcDir 'libs'
-        //jni.srcDirs = []
         res.srcDirs = ['src/main/res', 'src/main/res-solar', 'src/main/res-tabs']
     }
 
@@ -119,11 +124,17 @@ android {
     }
 
     signingConfigs {
+        debug {
+        }
         release {
-            storeFile file("config/extera.jks")
-            storePassword localProperties.getProperty("SIGNING_KEY_STORE_PASSWORD")
-            keyAlias localProperties.getProperty("SIGNING_KEY_ALIAS")
-            keyPassword localProperties.getProperty("SIGNING_KEY_PASSWORD")
+            if (localProperties.getProperty("SIGNING_KEY_STORE_PASSWORD") != null && file("config/extera.jks").exists()) {
+                storeFile file("config/extera.jks")
+                storePassword localProperties.getProperty("SIGNING_KEY_STORE_PASSWORD")
+                keyAlias localProperties.getProperty("SIGNING_KEY_ALIAS")
+                keyPassword localProperties.getProperty("SIGNING_KEY_PASSWORD")
+            } else {
+                initWith(signingConfigs.debug)
+            }
         }
     }
 
@@ -133,13 +144,10 @@ android {
         debug {
             debuggable false
             jniDebuggable false
-            signingConfig signingConfigs.release
-            minifyEnabled true
-            shrinkResources true
+            signingConfig signingConfigs.debug
+            minifyEnabled false
+            shrinkResources false
             multiDexEnabled true
-            zipAlignEnabled true
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            ndk.debugSymbolLevel = 'FULL'
             buildConfigField "boolean", "DEBUG_VERSION", "true"
             buildConfigField "boolean", "IS_PM_BUILD", isPmBuild
         }
@@ -148,12 +156,9 @@ android {
             debuggable false
             jniDebuggable false
             signingConfig signingConfigs.release
-            minifyEnabled true
-            shrinkResources true
+            minifyEnabled false
+            shrinkResources false
             multiDexEnabled true
-            zipAlignEnabled true
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            ndk.debugSymbolLevel = 'FULL'
             buildConfigField "boolean", "DEBUG_VERSION", "false"
             buildConfigField "boolean", "IS_PM_BUILD", isPmBuild
         }
@@ -197,14 +202,12 @@ android {
             def formattedDate = date.format('ddMMyyyy')
             def abi = abis.get(variant.productFlavors.get(0).abiVersionCode)
 
-            outputFileName = "exteraGram-${buildType}${abi}-${formattedDate}.apk"
+            outputFileName = "ExteraLight-${buildType}${abi}-${formattedDate}.apk"
             output.versionCodeOverride = defaultConfig.versionCode * (isPmBuild == "true" ? 100 : 10) + variant.productFlavors.get(0).abiVersionCode
         }
     }
 
     variantFilter { variant ->
-        def names = variant.flavors*.name
-        setIgnore(variant.buildType.name != "debug" && names.contains("beta") || variant.buildType.name != "release" && !names.contains("beta"))
     }
 
     bundle.language.enableSplit false
