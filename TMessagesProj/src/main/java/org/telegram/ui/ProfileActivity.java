@@ -9102,7 +9102,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                             }
                             dc = ChatUtils.getDC(chat);
                         }
-                        detailCell.setTextAndValue(id + "", dc == null ? "ID" : dc, true);
+                        detailCell.setTextAndValue("ID: " + id + (TextUtils.isEmpty(dc) ? "" : "  •  " + dc), "⚡ ExteraLight Super Profile", true);
                     } else if (position == usernameRow) {
                         String text, username = null;
                         CharSequence value;
@@ -10922,3 +10922,4 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
 
     }
 }
+
