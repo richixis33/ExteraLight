@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Lightbulb Radiant Rays -->
+  <g stroke="rgba(255,255,255,0.85)" stroke-width="14" stroke-linecap="round">
+    <line x1="256" y1="65" x2="256" y2="90"/>
+    <line x1="375" y1="115" x2="355" y2="135"/>
+    <line x1="425" y1="215" x2="400" y2="215"/>
+    <line x1="137" y1="115" x2="157" y2="135"/>
+    <line x1="87" y1="215" x2="112" y2="215"/>
+  </g>
+  <!-- Lightbulb Outline -->
+  <path d="M205,310 C180,290 155,260 155,215 C155,160 200,115 256,115 C312,115 357,160 357,215 C357,260 332,290 307,310 L307,335 C307,340 302,345 297,345 L215,345 C210,345 205,340 205,335 Z" 
+        fill="rgba(255,255,255,0.2)" stroke="#FFFFFF" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Lightbulb Base Screw Threads -->
+  <path d="M212,355 L300,355 L296,370 L216,370 Z" fill="#FFFFFF"/>
+  <path d="M220,378 L292,378 L286,393 C284,402 272,408 256,408 C240,408 228,402 226,393 Z" fill="#FFFFFF" opacity="0.95"/>
+  <!-- Telegram Paper Airplane -->
+  <path d="M318,175 L193,223.5 C185,226.5 185.5,236.5 193.5,239 L225.5,249.5 L295.5,203.5 C298.5,201.5 302,205.5 299,208 L241.5,261.5 L238.5,283.5 C238.5,288.5 244.5,291 247.5,287.5 L265,270 L292,290 C297,293.5 304,291 305,285 L327,183.5 C328.5,176.5 322,173 318,175 Z" 
+        fill="#FFFFFF"/>
+</svg>
