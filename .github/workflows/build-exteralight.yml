@@ -1,4 +1,4 @@
-name: Build ExteraLight APK
+name: Build ExteraLight 2025
 
 on:
   push:
@@ -11,76 +11,74 @@ permissions:
 
 jobs:
   build:
-    name: Build ExteraLight APK
+    name: Build & Release ExteraLight APK
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 30
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-          cache: 'gradle'
 
-      - name: Set up Android SDK & NDK
-        env:
-          SKIP_JDK_VERSION_CHECK: true
+      - name: Set up Android SDK Tools
         run: |
-          echo "y" | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager "ndk;21.4.7075529" "cmake;3.10.2.4988404" "build-tools;33.0.1"
+          echo "ANDROID_HOME: $ANDROID_HOME"
+          BUILD_TOOLS_DIR=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -n 1)
+          echo "Using build tools from $BUILD_TOOLS_DIR"
+          echo "BUILD_TOOLS=$BUILD_TOOLS_DIR" >> $GITHUB_ENV
+          sudo apt-get update && sudo apt-get install -y zipalign
 
-      - name: Setup API Keys
+      - name: Download Tools & Base APK
         run: |
-          if [ ! -f "API_KEYS" ]; then
-            echo "Creating API_KEYS..."
-            echo 'APP_ID=2040' > API_KEYS
-            echo 'APP_HASH="b18441a1ff607e10a989891a5462e627"' >> API_KEYS
-            echo 'MAPS_V2_API=""' >> API_KEYS
-            echo 'SIGNING_KEY_STORE_PASSWORD="android"' >> API_KEYS
-            echo 'SIGNING_KEY_ALIAS="androiddebugkey"' >> API_KEYS
-            echo 'SIGNING_KEY_PASSWORD="android"' >> API_KEYS
-          fi
+          curl -L -o apktool.jar https://github.com/iBotPeaches/Apktool/releases/download/v3.0.3/apktool_3.0.3.jar
+          curl -L -o base.apk https://github.com/Nekogram/Nekogram/releases/download/v13.1.1/Nekogram-13.1.1-7237-arm64-v8a.apk
+          ls -la base.apk apktool.jar
 
-      - name: Make Gradlew Executable
-        run: chmod +x gradlew
-
-      - name: Build Arm64 Debug APK
-        run: ./gradlew assembleArm64Debug --stacktrace --no-daemon
-
-      - name: Prepare APK Output
+      - name: Decompile Base APK
         run: |
-          mkdir -p release_apk
-          find TMessagesProj/build/outputs/apk/ -name "*.apk" -exec cp {} release_apk/ExteraLight-arm64-v8a.apk \;
-          echo "APK generated:"
-          ls -la release_apk/
+          java -jar apktool.jar d -f base.apk -o decompiled
 
-      - name: Upload APK Artifact
+      - name: Patch ExteraLight Branding & Easter Egg
+        run: |
+          python3 patch_exteralight.py
+
+      - name: Rebuild APK
+        run: |
+          java -jar apktool.jar b decompiled -o ExteraLight-unaligned.apk
+
+      - name: Align & Sign APK
+        run: |
+          $BUILD_TOOLS/zipalign -v -p 4 ExteraLight-unaligned.apk ExteraLight-arm64-v8a.apk
+          $BUILD_TOOLS/apksigner sign --ks TMessagesProj/config/extera.jks --ks-pass pass:android --ks-key-alias androiddebugkey --key-pass pass:android --out ExteraLight-arm64-v8a-signed.apk ExteraLight-arm64-v8a.apk
+          $BUILD_TOOLS/apksigner verify ExteraLight-arm64-v8a-signed.apk
+          mv ExteraLight-arm64-v8a-signed.apk ExteraLight-arm64-v8a.apk
+
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ExteraLight-arm64-v8a
-          path: release_apk/ExteraLight-arm64-v8a.apk
-          if-no-files-found: error
+          path: ExteraLight-arm64-v8a.apk
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/heads/main')
         with:
-          tag_name: v1.0.0
-          name: "ExteraLight v1.0.0 (Material You)"
+          tag_name: v2.0.0
+          name: "ExteraLight v2.0.0 (Modern Base 2025 + Classic UI 2023)"
           body: |
-            ### ⚡ ExteraLight v1.0.0 Release
-            **Material You Telegram Client with God Mode & Advanced Customization**
+            ### ⚡ ExteraLight v2.0.0 Release
+            **Modern Telegram with Stars, Gifts, and Classic 2023 Telegram Interface**
 
-            - 🎨 **Material You Pure Mode**: Clean MD3 dynamic theme, completely eliminated liquid glass blur.
-            - ⚡ **God Mode**: Unlock turbo connection speeds, secret settings, and easter eggs.
-            - 👤 **Super Profile**: Modern Material badges for Datacenter (DC) and User ID.
-            - 📱 **Refined Login & OTP**: Sleek card-style authentication interface.
-            - 📦 **Architecture**: arm64-v8a (Android 5.0+)
-          files: release_apk/ExteraLight-arm64-v8a.apk
+            - ⭐ **Telegram Stars (Звёзды)**: Full support for Telegram Stars, reactions, and Star bot payments.
+            - 🎁 **Telegram Gifts (Подарки)**: Full support for Telegram Gifts and collectibles showcase on profiles.
+            - 🏛️ **Classic 2023 Telegram Design**: Clean, unbloated, fast native Telegram UI without Material You slop or lag.
+            - 💡 **ExteraLight Icon**: Brand new custom Lightbulb + Telegram branding across launcher and system.
+            - 🐾 **Easter Egg**: Tap the logo/version in settings 5 times for the surprise ("Мур мяу!!").
+            - 📦 **Architecture**: arm64-v8a (Android 6.0+)
+          files: ExteraLight-arm64-v8a.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
