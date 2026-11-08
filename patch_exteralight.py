@@ -88,8 +88,10 @@ def patch_arsc_strings(arsc_data, replacements):
         print(f"Error patching ARSC: {e}")
         return arsc_data
 
-def patch_axml_strings(data, replacements, new_version_code=None):
+def patch_axml_strings(data, replacements=None, new_version_code=None, replace_cat=False):
     try:
+        plane_path = "M43.5,62 C39,58 34,52 34,43 C34,32 43,23 54,23 C65,23 74,32 74,43 C74,52 69,58 64.5,62 L64.5,67 C64.5,68 63.5,69 62.5,69 L45.5,69 C44.5,69 43.5,68 43.5,67 Z M66.5,35.5 L41.5,45.2 C39.9,45.8 40,47.8 41.6,48.3 L48,50.4 L62,41.2 C62.6,40.8 63.3,41.6 62.7,42.1 L51.2,52.8 L50.6,57.2 C50.6,58.2 51.8,58.7 52.4,58 L55.9,54.5 L61.3,58.5 C62.3,59.2 63.7,58.7 63.9,57.5 L68.3,37.2 C68.6,35.8 67.3,35.1 66.5,35.5 Z"
+
         pos = 8
         stype, ssize, scsize, scount, style_cnt, flags, sstart, styles_start = struct.unpack_from('<HHIIIIII', data, pos)
         offsets = list(struct.unpack_from(f'<{scount}I', data, pos + ssize))
@@ -110,10 +112,17 @@ def patch_axml_strings(data, replacements, new_version_code=None):
                 s = sdata[2:2+length*2].decode('utf-16le', errors='ignore')
             strings.append(s)
 
-        for i in range(len(strings)):
-            for old_txt, new_txt in replacements.items():
-                if old_txt in strings[i]:
-                    strings[i] = strings[i].replace(old_txt, new_txt)
+        if replace_cat:
+            for i in range(len(strings)):
+                if "513.8" in strings[i] or "348.07" in strings[i]:
+                    strings[i] = plane_path
+                    print(f"Replaced cat vector path at string index {i}")
+
+        if replacements:
+            for i in range(len(strings)):
+                for old_txt, new_txt in replacements.items():
+                    if old_txt in strings[i]:
+                        strings[i] = strings[i].replace(old_txt, new_txt)
 
         new_strings_data = bytearray()
         new_offsets = []
@@ -246,6 +255,12 @@ def patch_decompiled_folder(root="decompiled"):
                     # Easter egg triggers
                     if '"DebugMenuLongPress"' in content:
                         content = content.replace('"DebugMenuLongPress"', f'"{easter_egg_text}"')
+                        # Also override LocaleController.getString result if present
+                        content = re.sub(
+                            r'(invoke-static \{[^\}]+\}, Lorg/telegram/messenger/LocaleController;->getString\(Ljava/lang/String;I\)Ljava/lang/String;\s*move-result-object (v\d+))',
+                            r'\1\n    const-string \2, "' + easter_egg_text + '"',
+                            content
+                        )
                         mod = True
                         egg_count += 1
                         print(f"Patched DebugMenuLongPress in {file}")
@@ -313,9 +328,6 @@ def patch_built_apk(apk_path="ExteraLight-unaligned.apk"):
         except Exception as e:
             print(f"Failed to render {dest_name}: {e}")
 
-    # Read APK entries and prepare replacements
-    plane_path = "M43.5,62 C39,58 34,52 34,43 C34,32 43,23 54,23 C65,23 74,32 74,43 C74,52 69,58 64.5,62 L64.5,67 C64.5,68 63.5,69 62.5,69 L45.5,69 C44.5,69 43.5,68 43.5,67 Z M66.5,35.5 L41.5,45.2 C39.9,45.8 40,47.8 41.6,48.3 L48,50.4 L62,41.2 C62.6,40.8 63.3,41.6 62.7,42.1 L51.2,52.8 L50.6,57.2 C50.6,58.2 51.8,58.7 52.4,58 L55.9,54.5 L61.3,58.5 C62.3,59.2 63.7,58.7 63.9,57.5 L68.3,37.2 C68.6,35.8 67.3,35.1 66.5,35.5 Z"
-
     tmp_out = apk_path + ".tmp"
     with zipfile.ZipFile(apk_path, "r") as zin:
         with zipfile.ZipFile(tmp_out, "w", compression=zipfile.ZIP_DEFLATED) as zout:
@@ -326,12 +338,9 @@ def patch_built_apk(apk_path="ExteraLight-unaligned.apk"):
                     print(f"Replaced launcher icon in APK: {fname}")
                 elif fname in ["res/PFi.xml", "res/Egm.xml"]:
                     raw_xml = zin.read(fname)
-                    if b"513.8,348.07" in raw_xml:
-                        patched_xml = patch_axml_strings(raw_xml, {"M513.8,348.07": plane_path})
-                        zout.writestr(item, patched_xml)
-                        print(f"Replaced cat vector with Lightbulb+Plane in APK: {fname}")
-                    else:
-                        zout.writestr(item, raw_xml)
+                    patched_xml = patch_axml_strings(raw_xml, replace_cat=True)
+                    zout.writestr(item, patched_xml)
+                    print(f"Replaced cat vector with Lightbulb+Plane in APK: {fname}")
                 else:
                     zout.writestr(item, zin.read(fname))
 
