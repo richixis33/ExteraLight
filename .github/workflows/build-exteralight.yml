@@ -53,10 +53,12 @@ jobs:
 
       - name: Align & Sign APK
         run: |
+          keytool -genkeypair -v -keystore exteralight.jks -alias exteralight -keyalg RSA -keysize 2048 -validity 10000 -storepass exteralight123 -keypass exteralight123 -dname "CN=ExteraLight, O=ExteraLight, C=US"
           $BUILD_TOOLS/zipalign -v -p 4 ExteraLight-unaligned.apk ExteraLight-arm64-v8a.apk
-          $BUILD_TOOLS/apksigner sign --ks TMessagesProj/config/extera.jks --ks-pass pass:android --ks-key-alias androiddebugkey --key-pass pass:android --out ExteraLight-arm64-v8a-signed.apk ExteraLight-arm64-v8a.apk
+          $BUILD_TOOLS/apksigner sign --ks exteralight.jks --ks-pass pass:exteralight123 --ks-key-alias exteralight --key-pass pass:exteralight123 --out ExteraLight-arm64-v8a-signed.apk ExteraLight-arm64-v8a.apk
           $BUILD_TOOLS/apksigner verify ExteraLight-arm64-v8a-signed.apk
           mv ExteraLight-arm64-v8a-signed.apk ExteraLight-arm64-v8a.apk
+          ls -lh ExteraLight-arm64-v8a.apk
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
