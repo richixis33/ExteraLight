@@ -3,6 +3,7 @@ import re
 import sys
 import struct
 import subprocess
+import zipfile
 
 def patch_arsc_strings(arsc_data, replacements):
     try:
@@ -171,13 +172,8 @@ def patch_axml_strings(data, replacements, new_version_code=None):
         print(f"Error patching AXML: {e}")
         return data
 
-def main():
-    root = "decompiled"
-    if not os.path.exists(root):
-        print(f"Directory {root} does not exist!")
-        sys.exit(1)
-
-    print("=== Patching ExteraLight (Zero-Crash Mode) ===")
+def patch_decompiled_folder(root="decompiled"):
+    print("=== Patching decompiled folder ===")
 
     # 1. Update apktool.yml
     apktool_yml = os.path.join(root, "apktool.yml")
@@ -190,14 +186,13 @@ def main():
             f.write(yml)
         print("Updated apktool.yml: versionCode 72600, versionName 2.0.1")
 
-    # 2. Patch AndroidManifest.xml (handles text or binary)
+    # 2. Patch AndroidManifest.xml
     manifest_path = os.path.join(root, "AndroidManifest.xml")
     if os.path.exists(manifest_path):
         with open(manifest_path, "rb") as f:
             m_data = f.read()
 
         if m_data.startswith(b"<?xml") or b"<manifest" in m_data[:200]:
-            # Plain text XML
             text = m_data.decode("utf-8", errors="ignore")
             text = re.sub(r'android:versionCode="[^"]*"', 'android:versionCode="72600"', text)
             text = re.sub(r'android:versionName="[^"]*"', 'android:versionName="2.0.1"', text)
@@ -206,7 +201,6 @@ def main():
                 f.write(text)
             print("Patched text AndroidManifest.xml")
         else:
-            # Binary XML
             new_m = patch_axml_strings(m_data, {"13.1.1": "2.0.1", "Nekogram": "ExteraLight"}, new_version_code=72600)
             with open(manifest_path, "wb") as f:
                 f.write(new_m)
@@ -229,54 +223,11 @@ def main():
             f.write(new_arsc)
         print("Successfully patched resources.arsc!")
 
-    # 4. Patch Neko Cat vector drawables (PFi.xml and Egm.xml)
-    plane_path = "M43.5,62 C39,58 34,52 34,43 C34,32 43,23 54,23 C65,23 74,32 74,43 C74,52 69,58 64.5,62 L64.5,67 C64.5,68 63.5,69 62.5,69 L45.5,69 C44.5,69 43.5,68 43.5,67 Z M66.5,35.5 L41.5,45.2 C39.9,45.8 40,47.8 41.6,48.3 L48,50.4 L62,41.2 C62.6,40.8 63.3,41.6 62.7,42.1 L51.2,52.8 L50.6,57.2 C50.6,58.2 51.8,58.7 52.4,58 L55.9,54.5 L61.3,58.5 C62.3,59.2 63.7,58.7 63.9,57.5 L68.3,37.2 C68.6,35.8 67.3,35.1 66.5,35.5 Z"
-    for cat_res in ["res/PFi.xml", "res/Egm.xml"]:
-        p = os.path.join(root, cat_res)
-        if os.path.exists(p):
-            with open(p, "rb") as f:
-                cdata = f.read()
-            if b"513.8,348.07" in cdata:
-                new_cdata = patch_axml_strings(cdata, {"M513.8,348.07": plane_path})
-                with open(p, "wb") as f:
-                    f.write(new_cdata)
-                print(f"Replaced cat vector in {cat_res} with Lightbulb+Plane")
-
-    # 5. Generate and replace launcher icon PNGs
-    res_dir = os.path.join(root, "res")
-    if os.path.exists(res_dir):
-        icon_renders = [
-            ("icon_app.svg", "res/9wU.png", 48, 48),
-            ("icon_app.svg", "res/ynk.png", 72, 72),
-            ("icon_app.svg", "res/FSV.png", 96, 96),
-            ("icon_app.svg", "res/RJS.png", 144, 144),
-            ("icon_app.svg", "res/o-_.png", 192, 192),
-            ("icon_fg.svg", "res/bBP.png", 108, 108),
-            ("icon_fg.svg", "res/yi4.png", 162, 162),
-            ("icon_fg.svg", "res/tPr.png", 216, 216),
-            ("icon_fg.svg", "res/BME.png", 324, 324),
-        ]
-        for svg, dest_rel, w, h in icon_renders:
-            dest = os.path.join(root, dest_rel)
-            if os.path.exists(svg) and os.path.exists(os.path.dirname(dest)):
-                try:
-                    subprocess.run(["rsvg-convert", "-w", str(w), "-h", str(h), svg, "-o", dest], check=True)
-                    print(f"Rendered {svg} -> {dest_rel} ({w}x{h})")
-                except Exception as e:
-                    print(f"rsvg-convert skipped for {dest_rel}: {e}")
-
-    # 6. Smali patching: Easter Egg and Branding
+    # 4. Smali patching: Easter Egg and Branding
     smali_dirs = [os.path.join(root, d) for d in os.listdir(root) if d.startswith("smali")]
     print(f"Scanning smali directories: {smali_dirs}")
 
-    shrug_patterns = [
-        "¯\\_(ツ)_/¯",
-        "\\u00af\\_(\\u30c4)_/\\u00af",
-        "¯\\_(^)_/¯",
-        "\\u00af\\_(^)_/\\u00af"
-    ]
     easter_egg_text = "Мур мяу!!"
-
     egg_count = 0
     brand_count = 0
 
@@ -291,14 +242,22 @@ def main():
                         content = f.read()
 
                     mod = False
-                    for pat in shrug_patterns:
-                        if pat in content:
-                            content = content.replace(pat, easter_egg_text)
+
+                    # Easter egg triggers
+                    if '"DebugMenuLongPress"' in content:
+                        content = content.replace('"DebugMenuLongPress"', f'"{easter_egg_text}"')
+                        mod = True
+                        egg_count += 1
+                        print(f"Patched DebugMenuLongPress in {file}")
+
+                    for shrug in ["¯\\_(ツ)_/¯", "\\u00af\\_(\\u30c4)_/\\u00af", "¯\\_(^)_/¯", "\\u00af\\_(^)_/\\u00af"]:
+                        if shrug in content:
+                            content = content.replace(shrug, easter_egg_text)
                             mod = True
                             egg_count += 1
-                            print(f"Patched easter egg in {file}")
+                            print(f"Patched shrug in {file}")
 
-                    # Replace UI titles and branding strings (excluding internal Ltw/nekomimi package references)
+                    # Replace branding strings
                     if '"Nekogram"' in content:
                         content = content.replace('"Nekogram"', '"ExteraLight"')
                         mod = True
@@ -322,7 +281,68 @@ def main():
                     pass
 
     print(f"Smali patches completed: {egg_count} easter egg occurrences, {brand_count} branding strings")
-    print("=== Patching finished successfully! ===")
+
+def patch_built_apk(apk_path="ExteraLight-unaligned.apk"):
+    print(f"=== Patching assets and icons inside {apk_path} ===")
+    if not os.path.exists(apk_path):
+        print(f"APK {apk_path} not found!")
+        return
+
+    # Render PNG icons from SVGs
+    icon_renders = [
+        ("icon_app.svg", "res/9wU.png", 48, 48),
+        ("icon_app.svg", "res/ynk.png", 72, 72),
+        ("icon_app.svg", "res/FSV.png", 96, 96),
+        ("icon_app.svg", "res/RJS.png", 144, 144),
+        ("icon_app.svg", "res/o-_.png", 192, 192),
+        ("icon_fg.svg", "res/bBP.png", 108, 108),
+        ("icon_fg.svg", "res/yi4.png", 162, 162),
+        ("icon_fg.svg", "res/tPr.png", 216, 216),
+        ("icon_fg.svg", "res/BME.png", 324, 324),
+    ]
+
+    rendered_bytes = {}
+    for svg, dest_name, w, h in icon_renders:
+        tmp_png = f"tmp_{w}.png"
+        try:
+            subprocess.run(["rsvg-convert", "-w", str(w), "-h", str(h), svg, "-o", tmp_png], check=True)
+            with open(tmp_png, "rb") as f:
+                rendered_bytes[dest_name] = f.read()
+            os.remove(tmp_png)
+            print(f"Generated {dest_name} ({w}x{h}) from {svg}")
+        except Exception as e:
+            print(f"Failed to render {dest_name}: {e}")
+
+    # Read APK entries and prepare replacements
+    plane_path = "M43.5,62 C39,58 34,52 34,43 C34,32 43,23 54,23 C65,23 74,32 74,43 C74,52 69,58 64.5,62 L64.5,67 C64.5,68 63.5,69 62.5,69 L45.5,69 C44.5,69 43.5,68 43.5,67 Z M66.5,35.5 L41.5,45.2 C39.9,45.8 40,47.8 41.6,48.3 L48,50.4 L62,41.2 C62.6,40.8 63.3,41.6 62.7,42.1 L51.2,52.8 L50.6,57.2 C50.6,58.2 51.8,58.7 52.4,58 L55.9,54.5 L61.3,58.5 C62.3,59.2 63.7,58.7 63.9,57.5 L68.3,37.2 C68.6,35.8 67.3,35.1 66.5,35.5 Z"
+
+    tmp_out = apk_path + ".tmp"
+    with zipfile.ZipFile(apk_path, "r") as zin:
+        with zipfile.ZipFile(tmp_out, "w", compression=zipfile.ZIP_DEFLATED) as zout:
+            for item in zin.infolist():
+                fname = item.filename
+                if fname in rendered_bytes:
+                    zout.writestr(item, rendered_bytes[fname])
+                    print(f"Replaced launcher icon in APK: {fname}")
+                elif fname in ["res/PFi.xml", "res/Egm.xml"]:
+                    raw_xml = zin.read(fname)
+                    if b"513.8,348.07" in raw_xml:
+                        patched_xml = patch_axml_strings(raw_xml, {"M513.8,348.07": plane_path})
+                        zout.writestr(item, patched_xml)
+                        print(f"Replaced cat vector with Lightbulb+Plane in APK: {fname}")
+                    else:
+                        zout.writestr(item, raw_xml)
+                else:
+                    zout.writestr(item, zin.read(fname))
+
+    os.replace(tmp_out, apk_path)
+    print(f"Successfully updated all assets in {apk_path}!")
+
+def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "--post-build":
+        patch_built_apk("ExteraLight-unaligned.apk")
+    else:
+        patch_decompiled_folder("decompiled")
 
 if __name__ == "__main__":
     main()
