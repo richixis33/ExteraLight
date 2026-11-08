@@ -15,11 +15,12 @@ def main():
     if os.path.exists(apktool_yml):
         with open(apktool_yml, "r", encoding="utf-8") as f:
             yml = f.read()
-        yml = re.sub(r"versionCode:\s*'?\d+'?", "versionCode: '7250'", yml)
-        yml = re.sub(r"versionName:\s*'?[^\'\n]+'?", "versionName: '2.0.0 (ExteraLight)'", yml)
+        # Note: versionCode MUST BE an integer without quotes
+        yml = re.sub(r"versionCode:\s*'?\d+'?", "versionCode: 7250", yml)
+        yml = re.sub(r"versionName:\s*'?[^\'\n]+'?", "versionName: '2.0.0'", yml)
         with open(apktool_yml, "w", encoding="utf-8") as f:
             f.write(yml)
-        print("Updated apktool.yml: versionCode 7250, versionName 2.0.0")
+        print("Updated apktool.yml: versionCode 7250 (int), versionName 2.0.0")
 
     # 2. Patch strings.xml across all values-* directories
     string_files = []
