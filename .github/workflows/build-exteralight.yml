@@ -1,0 +1,81 @@
+name: Build ExteraLight APK
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build ExteraLight APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Java 11
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+          cache: 'gradle'
+
+      - name: Set up Android SDK & NDK
+        run: |
+          echo "y" | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager "ndk;21.4.7075529" "cmake;3.10.2.4988404" "build-tools;33.0.1"
+
+      - name: Setup API Keys
+        run: |
+          if [ ! -f "API_KEYS" ]; then
+            echo "Creating API_KEYS..."
+            echo 'APP_ID=2040' > API_KEYS
+            echo 'APP_HASH="b18441a1ff607e10a989891a5462e627"' >> API_KEYS
+            echo 'MAPS_V2_API=""' >> API_KEYS
+            echo 'SIGNING_KEY_STORE_PASSWORD="android"' >> API_KEYS
+            echo 'SIGNING_KEY_ALIAS="androiddebugkey"' >> API_KEYS
+            echo 'SIGNING_KEY_PASSWORD="android"' >> API_KEYS
+          fi
+
+      - name: Make Gradlew Executable
+        run: chmod +x gradlew
+
+      - name: Build Arm64 Debug APK
+        run: ./gradlew assembleArm64Debug --stacktrace --no-daemon
+
+      - name: Prepare APK Output
+        run: |
+          mkdir -p release_apk
+          find TMessagesProj/build/outputs/apk/ -name "*.apk" -exec cp {} release_apk/ExteraLight-arm64-v8a.apk \;
+          echo "APK generated:"
+          ls -la release_apk/
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ExteraLight-arm64-v8a
+          path: release_apk/ExteraLight-arm64-v8a.apk
+          if-no-files-found: error
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/heads/main')
+        with:
+          tag_name: v1.0.0
+          name: "ExteraLight v1.0.0 (Material You)"
+          body: |
+            ### ⚡ ExteraLight v1.0.0 Release
+            **Material You Telegram Client with God Mode & Advanced Customization**
+
+            - 🎨 **Material You Pure Mode**: Clean MD3 dynamic theme, completely eliminated liquid glass blur.
+            - ⚡ **God Mode**: Unlock turbo connection speeds, secret settings, and easter eggs.
+            - 👤 **Super Profile**: Modern Material badges for Datacenter (DC) and User ID.
+            - 📱 **Refined Login & OTP**: Sleek card-style authentication interface.
+            - 📦 **Architecture**: arm64-v8a (Android 5.0+)
+          files: release_apk/ExteraLight-arm64-v8a.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
