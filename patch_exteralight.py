@@ -10,19 +10,18 @@ def main():
 
     print("=== Patching ExteraLight ===")
 
-    # 1. Update apktool.yml versionCode & versionName
+    # 1. Update apktool.yml versionCode & versionName (versionCode must be an unquoted int)
     apktool_yml = os.path.join(root, "apktool.yml")
     if os.path.exists(apktool_yml):
         with open(apktool_yml, "r", encoding="utf-8") as f:
             yml = f.read()
-        # Note: versionCode MUST BE an integer without quotes
         yml = re.sub(r"versionCode:\s*'?\d+'?", "versionCode: 7250", yml)
         yml = re.sub(r"versionName:\s*'?[^\'\n]+'?", "versionName: '2.0.0'", yml)
         with open(apktool_yml, "w", encoding="utf-8") as f:
             f.write(yml)
         print("Updated apktool.yml: versionCode 7250 (int), versionName 2.0.0")
 
-    # 2. Patch strings.xml across all values-* directories
+    # 2. Patch strings.xml across all values-* directories: ONLY replace tag text, NOT attribute names!
     string_files = []
     res_dir = os.path.join(root, "res")
     if os.path.exists(res_dir):
@@ -38,9 +37,12 @@ def main():
                 with open(sf, "r", encoding="utf-8") as f:
                     content = f.read()
 
-                content = content.replace("Nekogram", "ExteraLight")
-                content = content.replace("некограм", "ExteraLight")
-                content = content.replace("Некограм", "ExteraLight")
+                # Replace only text between > and <
+                # e.g. <string name="AppName">Nekogram</string> -> <string name="AppName">ExteraLight</string>
+                content = re.sub(r'(>[^<]*?)Nekogram([^<]*?<)', r'\1ExteraLight\2', content)
+                content = re.sub(r'(>[^<]*?)nekogram([^<]*?<)', r'\1ExteraLight\2', content)
+                content = re.sub(r'(>[^<]*?)Некограм([^<]*?<)', r'\1ExteraLight\2', content)
+                content = re.sub(r'(>[^<]*?)некограм([^<]*?<)', r'\1ExteraLight\2', content)
 
                 with open(sf, "w", encoding="utf-8") as f:
                     f.write(content)
@@ -96,10 +98,15 @@ def main():
                 f.write(icon_vector)
             print(f"Updated icon: {ip}")
 
-    # 4. Patch Easter Egg: Replace shrug with 'Мур мяу!!' in all smali files
+    # 4. Patch Easter Egg: Replace shrug variants with 'Мур мяу!!' in all smali files
     smali_dirs = [os.path.join(root, d) for d in os.listdir(root) if d.startswith("smali")]
-    shrug_target = "¯\\_(ツ)_/¯"
-    shrug_replacement = "Мур мяу!!"
+    shrug_patterns = [
+        "¯\\_(ツ)_/¯",
+        "\\u00af\\_(\\u30c4)_/\\u00af",
+        "¯\\_(^)_/¯",
+        "\\u00af\\_(^)_/\\u00af"
+    ]
+    replacement = "Мур мяу!!"
     count_patched = 0
 
     for sdir in smali_dirs:
@@ -110,8 +117,14 @@ def main():
                     try:
                         with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
                             s_content = f.read()
-                        if shrug_target in s_content or "¯\\_(ツ)_/¯" in s_content:
-                            s_content = s_content.replace(shrug_target, shrug_replacement)
+                        
+                        modified = False
+                        for p in shrug_patterns:
+                            if p in s_content:
+                                s_content = s_content.replace(p, replacement)
+                                modified = True
+                        
+                        if modified:
                             with open(filepath, "w", encoding="utf-8") as f:
                                 f.write(s_content)
                             count_patched += 1
