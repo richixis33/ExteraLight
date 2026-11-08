@@ -44,13 +44,17 @@ jobs:
           java -jar apktool.jar d -f -r base.apk -o decompiled
           ls -la decompiled/
 
-      - name: Patch ExteraLight Branding, Icons & Easter Egg
+      - name: Patch Smali, Manifest & ARSC
         run: |
           python3 patch_exteralight.py
 
       - name: Rebuild APK
         run: |
           java -jar apktool.jar b decompiled -o ExteraLight-unaligned.apk
+
+      - name: Patch Icons & Vectors into Built APK
+        run: |
+          python3 patch_exteralight.py --post-build
 
       - name: Align & Sign APK
         run: |
