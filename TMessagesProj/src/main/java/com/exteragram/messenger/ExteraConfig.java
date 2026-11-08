@@ -36,6 +36,11 @@ public class ExteraConfig {
 
     private static final Object sync = new Object();
 
+    // ExteraLight Custom
+    public static boolean godMode;
+    public static boolean pureMaterialYou;
+    public static boolean profileChips;
+
     // Appearance
     public static float avatarCorners;
     public static boolean hideActionBarStatus;
@@ -190,6 +195,9 @@ public class ExteraConfig {
 
             squareFab = preferences.getBoolean("squareFab", true);
             forceBlur = preferences.getBoolean("forceBlur", false);
+            godMode = preferences.getBoolean("godMode", false);
+            pureMaterialYou = preferences.getBoolean("pureMaterialYou", true);
+            profileChips = preferences.getBoolean("profileChips", true);
             forceSnow = preferences.getBoolean("forceSnow", false);
             useSystemFonts = preferences.getBoolean("useSystemFonts", true);
             newSwitchStyle = preferences.getBoolean("newSwitchStyle", true);
@@ -374,4 +382,12 @@ public class ExteraConfig {
         ExteraConfig.editor.clear().apply();
         ExteraConfig.loadConfig();
     }
+
+    public static void toggleGodMode() {
+        godMode = !godMode;
+        if (editor != null) {
+            editor.putBoolean("godMode", godMode).apply();
+        }
+    }
 }
+
