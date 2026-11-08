@@ -1791,6 +1791,16 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             setOrientation(VERTICAL);
             setGravity(Gravity.CENTER);
 
+            TextView exteraLogoBadge = new TextView(context);
+            exteraLogoBadge.setText("⚡ EXTERALIGHT");
+            exteraLogoBadge.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
+            exteraLogoBadge.setTypeface(AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_ROBOTO_MEDIUM));
+            exteraLogoBadge.setTextColor(Theme.getColor(Theme.key_featuredStickers_addButton));
+            exteraLogoBadge.setGravity(Gravity.CENTER);
+            exteraLogoBadge.setPadding(AndroidUtilities.dp(14), AndroidUtilities.dp(5), AndroidUtilities.dp(14), AndroidUtilities.dp(5));
+            exteraLogoBadge.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(14), Theme.multAlpha(Theme.getColor(Theme.key_featuredStickers_addButton), 0.16f)));
+            addView(exteraLogoBadge, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 0, 0, 0, 16));
+
             titleView = new TextView(context);
             titleView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 18);
             titleView.setTypeface(AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_ROBOTO_MEDIUM));
@@ -3280,6 +3290,16 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
 
             currentType = type;
             setOrientation(VERTICAL);
+
+            TextView exteraLogoBadge = new TextView(context);
+            exteraLogoBadge.setText("⚡ EXTERALIGHT ⚡");
+            exteraLogoBadge.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 12);
+            exteraLogoBadge.setTypeface(AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_ROBOTO_MEDIUM));
+            exteraLogoBadge.setTextColor(Theme.getColor(Theme.key_featuredStickers_addButton));
+            exteraLogoBadge.setGravity(Gravity.CENTER);
+            exteraLogoBadge.setPadding(AndroidUtilities.dp(12), AndroidUtilities.dp(4), AndroidUtilities.dp(12), AndroidUtilities.dp(4));
+            exteraLogoBadge.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(12), Theme.multAlpha(Theme.getColor(Theme.key_featuredStickers_addButton), 0.16f)));
+            addView(exteraLogoBadge, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 0, 10, 0, 14));
 
             confirmTextView = new TextView(context);
             confirmTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
@@ -8278,3 +8298,4 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
         }
     }
 }
+
